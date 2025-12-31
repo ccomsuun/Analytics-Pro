@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Analytics Pro | Business Edition</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root {
+            --bg: #0b0f1a; --card: #161b2b; --accent: #7c4dff;
+            --success: #00e676; --danger: #ff5252; --text: #ffffff;
+            --sub-text: #94a3b8; --border: #2d3748;
+        }
+        * { box-sizing: border-box; transition: all 0.2s ease; }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; overflow-x: hidden; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 30px; }
+        
+        /* 로그인 섹션 */
+        #login-page { height: 100vh; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at center, #1e1b4b 0%, #0b0f1a 100%); }
+        .login-box { background: var(--card); padding: 40px; border-radius: 20px; border: 1px solid var(--border); width: 100%; max-width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .input-field { width: 100%; padding: 12px; margin: 10px 0; background: #0b0f1a; border: 1px solid var(--border); color: white; border-radius: 8px; outline: none; }
+
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .filter-bar { 
+            background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid var(--border);
+            display: flex; align-items: center; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;
+        }
+        input[type="date"], .search-input { 
+            background: #0b0f1a; border: 1px solid var(--border); color: white; 
+            padding: 10px; border-radius: 8px; color-scheme: dark; outline: none;
+        }
+        .btn { padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; display: flex; align-items: center; gap: 8px; }
+        .btn-main { background: var(--accent); color: white; width: 100%; margin-top: 10px; }
+        .btn-save { background: #475569; color: white; }
+        
+        /* AI 리포트 스타일 */
+        #ai-report-section { background: rgba(124, 77, 255, 0.05); border: 1px dashed var(--accent); padding: 25px; border-radius: 20px; margin-bottom: 25px; }
+        .ai-badge { background: var(--accent); color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 10px; display: inline-block; }
+
+        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+        .kpi-card { background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid var(--border); text-align: center; }
+        .kpi-val { font-size: 28px; font-weight: 800; margin-top: 10px; }
+        
+        .charts-main { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .chart-box { background: var(--card); padding: 25px; border-radius: 20px; border: 1px solid var(--border); }
+        .full { grid-column: span 2; }
+        .half { height: 400px; }
+        .table-container { margin-top: 25px; max-height: 500px; overflow-y: auto; background: var(--card); border-radius: 20px; border: 1px solid var(--border); padding: 20px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 12px; color: var(--sub-text); border-bottom: 2px solid var(--border); position: sticky; top: 0; background: var(--card); }
+        td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
+        tr:hover { background: rgba(124, 77, 255, 0.05); }
+
+        #drop-zone { border: 2px dashed var(--border); border-radius: 20px; padding: 80px; text-align: center; cursor: pointer; }
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="login-page">
+    <div class="login-box">
+        <div style="font-size: 32px; font-weight: 900; color: var(--accent); margin-bottom: 10px;">Analytics Pro</div>
+        <p style="color: var(--sub-text); margin-bottom: 30px;">상업용 데이터 분석 솔루션</p>
+        <input type="text" class="input-field" placeholder="아이디 (아무거나 입력)">
+        <input type="password" class="input-field" placeholder="비밀번호">
+        <button class="btn btn-main" onclick="handleLogin()">로그인</button>
+        <p style="font-size: 12px; color: #475569; margin-top: 20px;">© 2025 Analytics Pro Business Edition</p>
+    </div>
+</div>
+
+<div class="container" id="report-area" style="display: none;">
+    <header>
+        <div style="font-size: 24px; font-weight: 900; color: var(--accent);">📊 Analytics Dashboard</div>
+        <div style="display: flex; gap: 10px;">
+            <label for="fileInput" class="btn btn-main" style="width: auto;">📁 파일 업로드</label>
+            <button class="btn btn-save" onclick="saveAsPDF()">📥 보고서 저장</button>
+            <input type="file" id="fileInput" accept=".xlsx, .xls" onchange="handleFile(event)">
+        </div>
+    </header>
+
+    <div id="drop-zone" onclick="document.getElementById('fileInput').click()">
+        <h2>분석할 데이터를 업로드하세요</h2>
+        <p>파일을 여기로 끌어다 놓거나 클릭하여 선택하세요</p>
+    </div>
+
+    <div id="dashboard" style="display: none;">
+        <div id="ai-report-section">
+            <span class="ai-badge">✨ AI Insights</span>
+            <div id="ai-content" style="line-height: 1.7; color: #d1d5db;">
+                데이터 분석이 완료되었습니다. <strong>[AI 분석 실행]</strong> 버튼을 누르면 통계적 통찰을 제공합니다.
+            </div>
+            <button id="ai-btn" class="btn btn-main" style="width: auto; margin-top: 15px; background: #4f46e5;" onclick="generateAIReport()">AI 분석 실행</button>
+        </div>
+
+        <div class="filter-bar">
+            <span style="color: var(--sub-text);">🗓️ 기간:</span>
+            <input type="date" id="startDate" onchange="updateEndDateLimit()">
+            <span>~</span>
+            <input type="date" id="endDate">
+            <button class="btn btn-main" style="width:auto;" onclick="applyFilter()">필터 적용</button>
+            <button class="btn btn-save" style="background:#2d3748" onclick="resetFilter()">전체 데이터</button>
+            <div style="flex-grow: 1;"></div>
+            <input type="text" id="tableSearch" class="search-input" placeholder="데이터 실시간 검색..." onkeyup="searchTable()">
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card"><div style="color:var(--sub-text)">총 데이터</div><div id="total-val" class="kpi-val">-</div></div>
+            <div class="kpi-card"><div style="color:var(--sub-text)">완료율</div><div id="rate-val" class="kpi-val" style="color:var(--success)">-</div></div>
+            <div class="kpi-card"><div style="color:var(--sub-text)">진행 중</div><div id="pending-val" class="kpi-val" style="color:var(--danger)">-</div></div>
+            <div class="kpi-card"><div style="color:var(--sub-text)">핵심 성과자</div><div id="top-tech" class="kpi-val" style="color:var(--accent)">-</div></div>
+        </div>
+
+        <div class="charts-main">
+            <div class="chart-box full" style="height: 350px;"><canvas id="lineChart"></canvas></div>
+            <div class="chart-box half"><canvas id="techChart"></canvas></div>
+            <div class="chart-box half"><canvas id="statusChart"></canvas></div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead><tr><th>날짜</th><th>담당자</th><th>상태</th><th>상세</th></tr></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let charts = {};
+    let rawRows = [];
+    let indices = { tech: -1, status: -1, date: -1 };
+
+    function handleLogin() {
+        document.getElementById('login-page').style.display = 'none';
+        document.getElementById('report-area').style.display = 'block';
+    }
+
+    function updateEndDateLimit() {
+        const startVal = document.getElementById('startDate').value;
+        const endInput = document.getElementById('endDate');
+        endInput.min = startVal;
+        if (endInput.value && endInput.value < startVal) endInput.value = startVal;
+    }
+
+    function handleFile(e) {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const data = new Uint8Array(evt.target.result);
+            const wb = XLSX.read(data, {type: 'array', cellDates: true});
+            const sheet = wb.Sheets[wb.SheetNames.find(n => n.toLowerCase().includes('closed')) || wb.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet, {header: 1});
+
+            let hIdx = rows.findIndex(r => r.some(c => /tech|assigned|담당자/i.test(String(c))));
+            if (hIdx === -1) hIdx = 0;
+
+            const headers = rows[hIdx];
+            rawRows = rows.slice(hIdx + 1).filter(r => r.length > 0);
+
+            indices.tech = headers.findIndex(h => /tech|assigned|담당자/i.test(String(h)));
+            indices.status = headers.findIndex(h => /status|상태/i.test(String(h)));
+            indices.date = headers.findIndex(h => /time|date|날짜|시간/i.test(String(h)));
+
+            const dates = rawRows.map(r => new Date(r[indices.date])).filter(d => !isNaN(d));
+            if(dates.length > 0) {
+                const min = new Date(Math.min(...dates)).toISOString().split('T')[0];
+                const max = new Date(Math.max(...dates)).toISOString().split('T')[0];
+                document.getElementById('startDate').value = min;
+                document.getElementById('endDate').value = max;
+            }
+
+            document.getElementById('drop-zone').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            render(rawRows);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function render(data) {
+        let techMap = {}, statusMap = { "완료": 0, "진행중": 0 }, dateMap = {};
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+
+        data.forEach(row => {
+            const t = row[indices.tech] || "미배정";
+            const s = String(row[indices.status] || "").toLowerCase();
+            const d = new Date(row[indices.date]);
+
+            techMap[t] = (techMap[t] || 0) + 1;
+            let statusLabel = s.includes('close') || s.includes('완료') ? "완료" : "진행중";
+            statusMap[statusLabel]++;
+
+            if (!isNaN(d)) {
+                const key = (d.getMonth() + 1) + "/" + d.getDate();
+                dateMap[key] = (dateMap[key] || 0) + 1;
+            }
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${!isNaN(d)?d.toLocaleDateString():'-'}</td><td style="color:var(--accent);font-weight:bold">${t}</td><td>${statusLabel}</td><td>-</td>`;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('total-val').innerText = data.length + "건";
+        document.getElementById('rate-val').innerText = data.length > 0 ? ((statusMap["완료"]/data.length)*100).toFixed(1) + "%" : "0%";
+        document.getElementById('pending-val').innerText = statusMap["진행중"] + "건";
+        const top = Object.entries(techMap).sort((a,b) => b[1]-a[1])[0];
+        document.getElementById('top-tech').innerText = top ? top[0] : "-";
+
+        drawCharts(techMap, statusMap, dateMap);
+    }
+
+    function generateAIReport() {
+        const content = document.getElementById('ai-content');
+        const btn = document.getElementById('ai-btn');
+        btn.innerText = "분석 중...";
+        btn.disabled = true;
+
+        setTimeout(() => {
+            const total = document.getElementById('total-val').innerText;
+            const topTech = document.getElementById('top-tech').innerText;
+            const rate = document.getElementById('rate-val').innerText;
+            
+            content.innerHTML = `
+                현재 분석된 <strong>${total}</strong>건의 데이터에 따르면, 전체 프로세스의 완료율은 <strong>${rate}</strong>입니다.<br>
+                특히 <strong>${topTech}</strong> 담당자가 가장 많은 업무를 처리하고 있으며, 차트상 특정 기간에 접수량이 집중되는 경향이 보입니다. 
+                인력 보강이나 업무 분산이 필요할 수 있습니다.
+            `;
+            btn.innerText = "AI 분석 완료";
+        }, 1500);
+    }
+
+    function drawCharts(tech, status, dates) {
+        Object.values(charts).forEach(c => c.destroy());
+        const base = { responsive: true, maintainAspectRatio: false };
+        
+        const sortedTech = Object.entries(tech).sort((a,b) => b[1]-a[1]).slice(0, 10);
+        charts.tech = new Chart(document.getElementById('techChart'), {
+            type: 'bar',
+            data: { labels: sortedTech.map(i => i[0]), datasets: [{ label: '처리건수', data: sortedTech.map(i => i[1]), backgroundColor: '#7c4dff' }] },
+            options: { ...base, indexAxis: 'y' }
+        });
+
+        charts.line = new Chart(document.getElementById('lineChart'), {
+            type: 'line',
+            data: { labels: Object.keys(dates), datasets: [{ label: '접수추이', data: Object.values(dates), borderColor: '#7c4dff', tension: 0.4 }] },
+            options: base
+        });
+
+        charts.status = new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: { labels: ['완료', '진행중'], datasets: [{ data: [status["완료"], status["진행중"]], backgroundColor: ['#00e676', '#ff5252'] }] },
+            options: base
+        });
+    }
+
+    function applyFilter() {
+        const start = new Date(document.getElementById('startDate').value);
+        const end = new Date(document.getElementById('endDate').value);
+        end.setHours(23, 59, 59);
+        render(rawRows.filter(r => { const d = new Date(r[indices.date]); return d >= start && d <= end; }));
+    }
+    function resetFilter() { render(rawRows); }
+    function searchTable() {
+        const input = document.getElementById('tableSearch').value.toLowerCase();
+        const rows = document.getElementById('tableBody').getElementsByTagName('tr');
+        for (let row of rows) row.style.display = row.innerText.toLowerCase().includes(input) ? '' : 'none';
+    }
+    function saveAsPDF() {
+        const element = document.getElementById('report-area');
+        html2pdf().set({ margin: 10, filename: 'Business_Report.pdf', html2canvas: { scale: 2 }, jsPDF: { orientation: 'landscape' } }).from(element).save();
+    }
+</script>
+</body>
+</html>
